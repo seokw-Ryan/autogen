@@ -2,35 +2,56 @@ import os
 from autogen import config_list_from_json
 import autogen
 from dotenv import load_dotenv
-import openai
 import pandas as pd
+from langchain_groq import ChatGroq
+# from langchain.llms import Llama
 
-# Get API key
+# Load environment variables
 load_dotenv()
-# config_list = config_list_from_json(env_or_file=".env")
-# openai.api_key = os.getenv("OPENAI_API_KEY")
-config_list = config_list_from_json(env_or_file="OAI_CONFIG_LIST")
+
+# Set up Llama model
+# llm = Llama(model_path="path/to/llama/model")
+
+# llm=ChatGroq(groq_api_key='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',
+#              model_name="Llama3-8b-8192")
+
+os.environ["AUTOGEN_USE_DOCKER"] = "False"
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+llm_config = {
+    "cache_seed": 48,
+    "config_list": [{
+        "model": os.environ.get("OPENAI_MODEL_NAME", "llama3-70b-8192"), 
+        "api_key": os.environ["GROQ_API_KEY"], 
+        "base_url": os.environ.get("OPENAI_API_BASE", "https://api.groq.com/openai/v1")
+        }
+    ],
+}
+
+
+
+
 def write_to_file(filename, message):
     with open(filename, "a") as file:
         file.write(message + "\n")
+
 # Define the "management" group chat:
 def management(query):
     ceo = autogen.AssistantAgent(
         name="ceo",
         system_message="You are the CEO of the company. Your role is to analyze the given task, divide it into manageable steps, and provide guidance to the team.",
-        llm_config={"config_list": config_list},
+        llm=llm_config,
     )
 
     cto = autogen.AssistantAgent(
         name="cto",
         system_message="You are the CTO of the company. Your role is to provide technical insights and recommendations for the task at hand.",
-        llm_config={"config_list": config_list},
+        llm=llm_config,
     )
 
     coo = autogen.AssistantAgent(
         name="coo",
         system_message="You are the COO of the company. Your role is to ensure smooth operations and resource allocation for the task.",
-        llm_config={"config_list": config_list},
+        llm=llm_config,
     )
 
     user_proxy = autogen.UserProxyAgent(
@@ -47,16 +68,8 @@ def management(query):
         max_round=5)
     manager = autogen.GroupChatManager(groupchat=groupchat)
 
-    #Save the file to a txt
     filename = "management_conversation.txt"
     write_to_file(filename, f"User: {query}")
-
-    def save_message(agent, message):
-        write_to_file(filename, f"{agent.name}: {message}")
-
-    # user_proxy.register_callback(save_message)
-
-    # user_proxy.initiate_chat(manager, message=query)
 
     user_proxy.initiate_chat(manager, message=query)
 
@@ -71,25 +84,25 @@ def code_generation(guide, topic):
     coder = autogen.AssistantAgent(
         name="coder",
         system_message="You are the lead coder responsible for generating code based on the provided guidelines and topic.",
-        llm_config={"config_list": config_list},
+        llm=llm_config,
     )
 
     code_critic = autogen.AssistantAgent(
         name="code_critic",
         system_message="You are the code critic responsible for reviewing and providing feedback on the generated code.",
-        llm_config={"config_list": config_list},
+        llm=llm_config,
     )
 
     tester = autogen.AssistantAgent(
         name="tester",
         system_message="You are the tester responsible for testing the generated code and ensuring it meets the requirements.",
-        llm_config={"config_list": config_list},
+        llm=llm_config,
     )
 
     documenter = autogen.AssistantAgent(
         name="documenter",
         system_message="You are the documenter responsible for creating documentation for the generated code.",
-        llm_config={"config_list": config_list},
+        llm=llm_config,
     )
 
     user_proxy = autogen.UserProxyAgent(
@@ -109,11 +122,6 @@ def code_generation(guide, topic):
 
     filename = "code_generation_conversation.txt"
     write_to_file(filename, f"User: Write code for {topic} based on the following guidelines: {guide}")
-
-    def save_message(agent, message):
-        write_to_file(filename, f"{agent.name}: {message}")
-
-    # user_proxy.register_callback(save_message)
 
     user_proxy.initiate_chat(
         manager, message=f"Write code for {topic} based on the following guidelines: {guide}")
@@ -159,12 +167,12 @@ llm_config_content_assistant = {
             },
         },
     ],
-    "config_list": config_list}
+    "llm_config": llm_config}
 
 company01 = autogen.AssistantAgent(
     name="company01",
     system_message="You are the manager of Company01. Your role is to oversee the entire operation, analyze tasks, and generate code. You can use the management function to analyze the given task and divide it into bullet points, and then use the code_generation function to write the code for the task. Reply TERMINATE when your task is done.",
-    llm_config=llm_config_content_assistant,
+    llm_config=llm_config,
 )
 
 user_proxy = autogen.UserProxyAgent(

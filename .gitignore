@@ -1,0 +1,5 @@
+#Ignore API keys
+*.env
+pyautogen/
+*.cache
+OAI_CONFIG_LIST
